@@ -127,29 +127,34 @@
   lightbox.addEventListener("click", (ev) => { if (ev.target !== lbImg) closeLb(); });
   document.addEventListener("keydown", (ev) => { if (ev.key === "Escape") closeLb(); });
 
-  // Formulario: abre el correo con los datos prellenados
+  // Formulario: arma el mensaje y abre WhatsApp con todo prellenado
+  const WHATSAPP = "525533045300";
   const form = document.getElementById("contact-form");
   const note = document.getElementById("form-note");
   form.addEventListener("submit", (ev) => {
     ev.preventDefault();
     const d = Object.fromEntries(new FormData(form));
-    if (!d.nombre || !d.email) {
-      note.textContent = "Por favor completa tu nombre y email.";
+    if (!d.nombre.trim()) {
+      note.textContent = "Por favor completa tu nombre.";
+      form.elements.nombre.focus();
       return;
     }
-    const body = [
-      `Nombre: ${d.nombre}`,
-      `Email: ${d.email}`,
-      `Teléfono: ${d.telefono || "-"}`,
-      `Tipo de evento: ${d.evento}`,
-      `Fecha: ${d.fecha || "-"}`,
-      `Lugar: ${d.lugar || "-"}`,
-      "",
-      d.mensaje || "",
-    ].join("\n");
-    const subject = `Cotización Deluxxe Show - ${d.evento}`;
-    window.location.href = `mailto:deluxxeshow@gmail.com?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
-    note.textContent = "¡Gracias! Se abrirá tu correo para enviar la solicitud.";
+    const fecha = d.fecha ? d.fecha.split("-").reverse().join("/") : "";
+    const details = [
+      `*Nombre:* ${d.nombre.trim()}`,
+      d.email && `*Email:* ${d.email}`,
+      d.telefono && `*Teléfono:* ${d.telefono}`,
+      `*Tipo de evento:* ${d.evento}`,
+      fecha && `*Fecha:* ${fecha}`,
+      d.lugar && `*Lugar:* ${d.lugar}`,
+    ].filter(Boolean);
+    const text = ["¡Hola Deluxxe! Quiero cotizar un show 🎤✨", "", ...details];
+    if (d.mensaje.trim()) text.push("", d.mensaje.trim());
+    const url = `https://wa.me/${WHATSAPP}?text=${encodeURIComponent(text.join("\n"))}`;
+    const win = window.open(url, "_blank");
+    if (win) win.opener = null;
+    else window.location.href = url;
+    note.textContent = "¡Gracias! Se abrirá WhatsApp con tu mensaje listo para enviar.";
   });
 
   document.getElementById("year").textContent = new Date().getFullYear();
