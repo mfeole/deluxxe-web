@@ -45,6 +45,10 @@
       ev.preventDefault();
       scrollToSection(section);
       history.replaceState(null, "", a.getAttribute("href"));
+      // Los botones "Quiero este show" dejan el cursor listo en el formulario
+      if (a.closest(".section__cta") || a.closest(".heart")) {
+        setTimeout(() => form.querySelector("input").focus({ preventScroll: true }), 900);
+      }
     });
   });
 
@@ -55,6 +59,47 @@
     const play = video.play();
     if (play) play.catch(() => {});
   }
+
+  // Video de la galería: se reproduce con sonido al llegar a la sección.
+  // Los navegadores solo permiten sonido automático después de que el visitante
+  // interactúa con la página; si aún no lo hizo, arranca sin sonido y el botón
+  // (o el primer clic/toque en cualquier parte) lo activa.
+  const gVideo = document.getElementById("gallery-video");
+  const soundBtn = document.getElementById("sound-toggle");
+  let gVisible = false;
+  let userMuted = false;
+  const syncSoundBtn = () => {
+    const on = !gVideo.muted;
+    soundBtn.setAttribute("aria-pressed", String(on));
+    soundBtn.setAttribute("aria-label", on ? "Silenciar" : "Activar sonido");
+  };
+  const playGallery = () => {
+    gVideo.muted = userMuted;
+    gVideo.play().catch(() => {
+      gVideo.muted = true;
+      gVideo.play().catch(() => {});
+    }).finally(syncSoundBtn);
+  };
+  new IntersectionObserver(([entry]) => {
+    gVisible = entry.isIntersecting;
+    if (gVisible) playGallery(); else gVideo.pause();
+  }, { threshold: 0.45 }).observe(gVideo);
+  soundBtn.addEventListener("click", (ev) => {
+    ev.stopPropagation();
+    gVideo.muted = !gVideo.muted;
+    userMuted = gVideo.muted;
+    if (gVideo.paused) gVideo.play().catch(() => {});
+    syncSoundBtn();
+  });
+  const unlockSound = (ev) => {
+    if (soundBtn.contains(ev.target)) return;
+    if (gVisible && gVideo.muted && !userMuted) {
+      gVideo.muted = false;
+      syncSoundBtn();
+    }
+  };
+  ["pointerdown", "keydown", "touchend"].forEach((t) => document.addEventListener(t, unlockSound));
+  gVideo.addEventListener("volumechange", syncSoundBtn);
 
   // Animaciones al aparecer
   const io = new IntersectionObserver((entries) => {
@@ -71,7 +116,7 @@
   const lightbox = document.getElementById("lightbox");
   const lbImg = lightbox.querySelector("img");
   const closeLb = () => { lightbox.hidden = true; };
-  document.querySelectorAll(".gallery__item").forEach((item) => {
+  document.querySelectorAll("a.gallery__item").forEach((item) => {
     item.addEventListener("click", (ev) => {
       ev.preventDefault();
       lbImg.src = item.getAttribute("href");
