@@ -18,6 +18,36 @@
   burger.addEventListener("click", () => setMenu(!nav.classList.contains("is-open")));
   nav.querySelectorAll("a").forEach((a) => a.addEventListener("click", () => setMenu(false)));
 
+  // Navegación: centra el contenido de cada sección en la pantalla (debajo del header)
+  const HEADER_H = 70;
+  const docTop = (el) => {
+    let t = 0;
+    for (let n = el; n; n = n.offsetParent) t += n.offsetTop;
+    return t;
+  };
+  const scrollToSection = (section) => {
+    if (section.id === "inicio") return window.scrollTo({ top: 0, behavior: "smooth" });
+    // Bloque de contenido real: desde el primer al último hijo visible (sin decoraciones)
+    const kids = [...section.children].filter((c) => !c.classList.contains("spots") && c.offsetHeight);
+    const top = docTop(kids[0]);
+    const last = kids[kids.length - 1];
+    const height = docTop(last) + last.offsetHeight - top;
+    const avail = window.innerHeight - HEADER_H;
+    const target = height <= avail - 40
+      ? top - HEADER_H - (avail - height) / 2
+      : top - HEADER_H - 24;
+    window.scrollTo({ top: Math.max(0, target), behavior: "smooth" });
+  };
+  document.querySelectorAll('a[href^="#"]').forEach((a) => {
+    a.addEventListener("click", (ev) => {
+      const section = document.getElementById(a.getAttribute("href").slice(1));
+      if (!section) return;
+      ev.preventDefault();
+      scrollToSection(section);
+      history.replaceState(null, "", a.getAttribute("href"));
+    });
+  });
+
   // Video del hero: asegurar reproducción automática sin audio
   const video = document.querySelector(".hero__video");
   if (video) {
