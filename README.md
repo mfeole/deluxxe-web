@@ -19,6 +19,9 @@ python3 -m http.server 8000
 # abrir http://localhost:8000
 ```
 
-## Publicar
+## Publicación
 
-Se puede publicar tal cual en GitHub Pages, Netlify o Vercel (no requiere build).
+El sitio se publica con **GitHub Pages** desde la rama `main` (carpeta raíz) en
+**https://deluxxeshow.com**. El archivo `CNAME` define el dominio y `.nojekyll`
+evita que GitHub procese los archivos con Jekyll. Cada cambio que llega a `main`
+se publica automáticamente en uno o dos minutos.

@@ -60,46 +60,66 @@
     if (play) play.catch(() => {});
   }
 
-  // Video de la galería: se reproduce con sonido al llegar a la sección.
+  // Videos de la galería: se reproducen al llegar a ellos y solo uno suena a la vez
+  // (el más visible, o el que el visitante eligió con su botón de sonido).
   // Los navegadores solo permiten sonido automático después de que el visitante
-  // interactúa con la página; si aún no lo hizo, arranca sin sonido y el botón
-  // (o el primer clic/toque en cualquier parte) lo activa.
-  const gVideo = document.getElementById("gallery-video");
-  const soundBtn = document.getElementById("sound-toggle");
-  let gVisible = false;
-  let userMuted = false;
-  const syncSoundBtn = () => {
-    const on = !gVideo.muted;
-    soundBtn.setAttribute("aria-pressed", String(on));
-    soundBtn.setAttribute("aria-label", on ? "Silenciar" : "Activar sonido");
+  // interactúa con la página; hasta entonces suenan en silencio y el botón
+  // (o el primer clic/toque en cualquier parte) activa el sonido.
+  const gVideos = [...document.querySelectorAll(".gallery__video")];
+  const ratios = new Map(gVideos.map((v) => [v, 0]));
+  let picked = null;     // video elegido a mano para sonar
+  let userMuted = false; // el visitante silenció la galería
+  let gestured = false;
+  const soundAllowed = () => gestured || Boolean(navigator.userActivation && navigator.userActivation.hasBeenActive);
+  const toggleOf = (v) => v.parentElement.querySelector(".sound-toggle");
+  const syncButtons = () => gVideos.forEach((v) => {
+    const on = !v.muted;
+    const btn = toggleOf(v);
+    btn.setAttribute("aria-pressed", String(on));
+    btn.setAttribute("aria-label", on ? "Silenciar" : "Activar sonido");
+  });
+  const updateVideos = () => {
+    const visible = gVideos.filter((v) => ratios.get(v) >= 0.45);
+    const lead = visible.includes(picked)
+      ? picked
+      : [...visible].sort((a, b) => ratios.get(b) - ratios.get(a))[0];
+    gVideos.forEach((v) => {
+      v.muted = userMuted || v !== lead || !soundAllowed();
+      if (!visible.includes(v)) {
+        v.pause();
+      } else if (v.paused) {
+        v.play().catch(() => {
+          v.muted = true;
+          v.play().catch(() => {});
+        }).finally(syncButtons);
+      }
+    });
+    syncButtons();
   };
-  const playGallery = () => {
-    gVideo.muted = userMuted;
-    gVideo.play().catch(() => {
-      gVideo.muted = true;
-      gVideo.play().catch(() => {});
-    }).finally(syncSoundBtn);
-  };
-  new IntersectionObserver(([entry]) => {
-    gVisible = entry.isIntersecting;
-    if (gVisible) playGallery(); else gVideo.pause();
-  }, { threshold: 0.45 }).observe(gVideo);
-  soundBtn.addEventListener("click", (ev) => {
-    ev.stopPropagation();
-    gVideo.muted = !gVideo.muted;
-    userMuted = gVideo.muted;
-    if (gVideo.paused) gVideo.play().catch(() => {});
-    syncSoundBtn();
+  const vObserver = new IntersectionObserver((entries) => {
+    entries.forEach((e) => ratios.set(e.target, e.intersectionRatio));
+    updateVideos();
+  }, { threshold: [0, 0.25, 0.45, 0.6, 0.8, 1] });
+  gVideos.forEach((v) => {
+    vObserver.observe(v);
+    v.addEventListener("volumechange", syncButtons);
+    toggleOf(v).addEventListener("click", (ev) => {
+      ev.stopPropagation();
+      gestured = true;
+      if (v.muted) {
+        userMuted = false;
+        picked = v;
+      } else {
+        userMuted = true;
+      }
+      updateVideos();
+    });
   });
   const unlockSound = (ev) => {
-    if (soundBtn.contains(ev.target)) return;
-    if (gVisible && gVideo.muted && !userMuted) {
-      gVideo.muted = false;
-      syncSoundBtn();
-    }
+    gestured = true;
+    if (!ev.target.closest(".sound-toggle")) updateVideos();
   };
   ["pointerdown", "keydown", "touchend"].forEach((t) => document.addEventListener(t, unlockSound));
-  gVideo.addEventListener("volumechange", syncSoundBtn);
 
   // Animaciones al aparecer
   const io = new IntersectionObserver((entries) => {
